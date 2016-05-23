@@ -1,3 +1,4 @@
+start.time <- Sys.time()
 library(caret)
 library(dplyr)         # Used by caret
 library(kernlab)       # support vector machine 
@@ -11,11 +12,6 @@ kdd_train=kdd_train[,-43]
 colnames <- read.table("names", skip = 1, sep = ":")
 # Sets the names on the trainingset
 names(kdd_train) <- colnames$V1
-
-#badCols <- nearZeroVar(kdd_train)
-# if (length(nearZeroVar(kdd_train)) > 0) {
-# kdd_train <- kdd_train[, -nearZeroVar(kdd_train-c(1,3,5))] 
-# }
 # requires/installs the packages
 require(class)
 # predicts with KNN
@@ -131,11 +127,7 @@ kdd_train$protocol_type = as.factor(kdd_train$protocol_type)
 
 
 
-# Remove NAs
-#kdd_train = na.omit(kdd_train)
-# remove zero varaince
-#nzv_cols <- nearZeroVar(kdd_train)
-#if(length(nzv_cols) > 0) kdd_train <- kdd_train[, -nzv_cols]
+# Remove NAs and zero values
 kdd_train=kdd_train[, -c(1,7,8,9,11,18,19,20,21,22,34,35,36,37,38,39,40,41,42)]
 #kdd_train=kdd_train[, -c(2,3,4,42,43)]
 
@@ -143,9 +135,8 @@ trainIndex <- createDataPartition(kdd_train$type_attack, p = .6, list = F)
 kddTraining = kdd_train[trainIndex,]
 kddTesting = kdd_train[-trainIndex,]
 kddTrainingTarget = as.factor(kddTraining$type_attack)
-# kddTraining=kddTraining[, -c(20,21,42,43)]
-# kddTesting=kddTesting[, -c(2,3,4,42,43)]
 
+# Alternatively: 
 # protocol_typeTraining=model.matrix( ~ protocol_type - 1, data=kddTraining)
 # kddTraining$protocol_type=protocol_typeTraining
 # serviceTraining=model.matrix( ~ service - 1, data=kddTraining)
@@ -166,10 +157,6 @@ zeroVarianceFeatures <- sapply(kddTraining, function(i){
   
 })
 
-# newtestingset <- kddTesting[, zeroVarianceFeatures]
-# newdataset <- as.data.frame(sapply(newtestingset, function(i) if(is.numeric(i)) scale(i) else i ))
-
-# newdataset$type_attack <- as.factor(newtestingset$type_attack)
 
 sapply(kddTraining, function(x)all(is.na(x)))
 naValuesTest <-  function (x) {
@@ -181,26 +168,6 @@ naValuesTest <-  function (x) {
 
 
 naValuesTest(kddTraining)
-
-# ctrl <- trainControl(method="repeatedcv",   # 10fold cross validation
-#                      repeats=5,		    # do 5 repititions of cv
-#                      summaryFunction=multiClassSummary,	# Use AUC to pick the best model
-#                      classProbs=TRUE)
-# 
-# svm.tune <- train(x=kddTraining,
-#                   y= kddTrainingTarget,
-#                   method = "svmLinear",   # linear kernel
-#                   tuneLength = 9,					# 9 values of the cost function
-#                   preProc = c("center","scale"),  # Center and scale data
-#                   metric="ROC",
-#                   trControl=ctrl)
-
-# ctrl <- trainControl(method = "cv", savePred=T, classProb=T)
-# mod <- train(type_attack~., data=kddTraining, method = "svmLinear", trControl = ctrl)
-# kddTraining$type_attack = as.factor(kddTraining$type_attack)
-# svm.model <- svm(type_attack ~ ., data = kddTraining, cost = 1, gamma = 1)
-# svm.pred <- predict(svm.model, kddTesting[,-43])
-# table(pred = svm.pred, true = kddTesting[,43])
 
 
 tuneOutSVM <- tune.svm(as.factor(type_attack)~., data=kddTraining, 
@@ -218,6 +185,7 @@ table(pred,kddTesting$type_attack)
 predicted <- data.frame(Predictions=(pred))
 predicted$Actual=c(kddTesting$type_attack)
 
+predicted$accuracy <- 0
 predicted$Actual=as.factor(predicted$Actual)
 for(i in 1:nrow(predicted))
   if(predicted[i,1]==predicted[i,2]){
@@ -227,3 +195,7 @@ for(i in 1:nrow(predicted))
   }
 plot(predicted$accuracy[0:300])
 lines(predicted$accuracy)
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
